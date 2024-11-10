@@ -529,4 +529,57 @@ public partial class SplitArrayDeclarations
     }
 }");
     }
+
+    [Fact]
+    public async Task ArrayPropertyRedimPreserveAsync()
+    {
+        await TestConversionVisualBasicToCSharpAsync(@"
+Public Class TestClass
+    Public Property NumArray1 As Integer()
+    Public Property NumArray2 As Integer(,)
+    Public Property NumArray3 As Integer()()
+
+    Public Sub New()
+        Array.Resize(NumArray1, 3)
+
+        ReDim Preserve NumArray1(4)
+
+        ReDim Preserve NumArray2(4, 4)
+
+        NumArray3 = New Integer(0)() {}
+
+        ReDim Preserve NumArray3(0)(4)
+    End Sub
+End Class", @"
+using System;
+
+public partial class TestClass
+{
+    public int[] NumArray1 { get; set; }    
+    public int[,] NumArray2 { get; set; }
+    public int[][] NumArray3 { get; set; }
+
+    public TestClass()
+    {
+        var argarr = NumArray1;
+        Array.Resize(ref argarr, 3);
+        NumArray1 = argarr;
+
+        var argarr1 = NumArray1;
+        Array.Resize(ref argarr1, 5);
+        NumArray1 = argarr1;
+
+        var oldNumArray2 = NumArray2;
+        NumArray2 = new int[5, 5];
+        if (oldNumArray2 is not null)
+            for (var i = 0; i <= oldNumArray2.Length / oldNumArray2.GetLength(1) - 1; ++i)
+                Array.Copy(oldNumArray2, i * oldNumArray2.GetLength(1), NumArray2, i * NumArray2.GetLength(1), Math.Min(oldNumArray2.GetLength(1), NumArray2.GetLength(1)));
+          
+        NumArray3 = new int[1][];
+
+        Array.Resize(ref NumArray3[0], 5);
+    }
+}");
+    }
+
 }
